@@ -1,9 +1,11 @@
 from tkinter import *
+from PIL import Image, ImageTk
 import sql
 import mysql.connector as msq
 
 
 # Ouverture de la connexion
+# --------------------------------------------------------
 config = {
     "user": "root",
     "password": "root",
@@ -14,7 +16,7 @@ config = {
 db = msq.connect(**config)
 
 
-# Création Interface
+# Création de l'interface
 # --------------------------------------------------------
 fenetre = Tk()
 fenetre.title("Trombinoscope")
@@ -26,29 +28,29 @@ fenetre.title("Trombinoscope")
 def click_button():
     prenom, nom = find_person()
     path = get_path_image(prenom, nom)
-    path = path.replace("jpg", "png")
-    path = "./photo_resize/" + path
-    change_photo(path)
+    path = "./photos/" + path
     identite = get_identite(prenom, nom)
-    change_label(identite)
+    change_content(path, identite)
 
 
-def find_person() -> tuple:
-    indice = user_list.curselection()
-    full_name = user_list.get(indice)
+def find_person():
+    indice = user_list.curselection()  # retourne un indice
+    full_name = user_list.get(
+        indice
+    )  # retourne un string avec le prenom, nom de l'indice
     full_name = full_name.split(" ")
     prenom, nom = full_name
     return (prenom, nom)
 
 
-def get_path_image(prenom: str, nom: str) -> str:
+def get_path_image(prenom, nom):
     """
     Retourne le chemin de l'image depuis la BDD
     """
-    # Cursor sert à récuperer les données que l'on demande
+    # Cursor sert à récupérer les données que l'on demande
     cursor = db.cursor()
 
-    # Requêtes : SELECT nom, prenom FROM utilisateurs WHERE id_utilisateur = 1
+    # Requêtes :
     query = (
         "SELECT photo FROM personnes WHERE nom = '"
         + nom
@@ -57,25 +59,21 @@ def get_path_image(prenom: str, nom: str) -> str:
         + "'"
     )
     cursor.execute(query)
-    path = cursor.fetchone()
+    path = cursor.fetchone()  # retourne une ligne de la requête sous forme de tuple
 
     # Fermeture
     cursor.close()
     return path[0]
 
 
-def change_photo(path: str):
-    photo.config(file=path)
-
-
-def get_identite(prenom: str, nom: str) -> tuple:
+def get_identite(prenom, nom):
     """
-    Retourne l'identité de la personne
+    Retourne le nom, le prénom, le genre et le statut de la personne
     """
-    # Cursor sert à récuperer les données que l'on demande
+    # Cursor sert à récupérer les données que l'on demande
     cursor = db.cursor()
 
-    # Requêtes : SELECT nom, prenom FROM utilisateurs WHERE id_utilisateur = 1
+    # Requêtes :
     query = (
         "SELECT prenom, nom, qualification, libelle_genre FROM personnes NATURAL JOIN genres NATURAL JOIN statuts WHERE nom = '"
         + nom
@@ -85,24 +83,53 @@ def get_identite(prenom: str, nom: str) -> tuple:
     )
 
     cursor.execute(query)
-    libelle = cursor.fetchone()
+    libelle = cursor.fetchone()  # retourne une ligne de la requête sous forme de tuple
 
     # Fermeture
     cursor.close()
     return libelle
 
 
-def change_label(libelle: tuple):
+def change_content(path, libelle):
+    # Changement de l'image dans le canvas
+    img = Image.open(path)
+    photo_resize = ImageTk.PhotoImage(img.resize((263, 350)))
+    # photo.config(file=photo_resize)
+    canvas.itemconfig(image_canvas, image=photo_resize)
+    # Changement du texte dans le label
     name_label.config(text=libelle)
+    canvas.mainloop()
 
 
+def get_users_list(db):
+    """
+    Retourne tous les utilisateurs pour la ListBox
+    """
+    # Cursor sert à récuperer les données que l'on demande
+    cursor = db.cursor()
+
+    # Requêtes :
+    query = "SELECT prenom, nom FROM personnes ORDER BY id_personne"
+
+    cursor.execute(query)
+    users = []
+    for user in cursor:
+        print(user)
+        name = " ".join(user)
+        users.append(name)
+
+    # Fermeture
+    cursor.close()
+    return users
+
+
+# Interface
 # --------------------------------------------------------
-# PanedWindow
 # Element principal
 main_layout = Frame(fenetre)
 header = Label(
     main_layout,
-    text="Ecole ISEN x SIMPLON \n Formation IA",
+    text="Ecole ISEN x SIMPLON \n Formation IA 2021/2022",
     fg="#161853",
     font="Noto 15",
     background="#FAEDF0",
@@ -122,18 +149,18 @@ button = Button(
 )
 user_list.pack(side=TOP, expand=10, fill=BOTH)
 button.pack(fill="x")
+# Insertion des personnes dans la ListBox en appelant la fonction get_users_list
+user_list.insert(END, *get_users_list(db))
 
-user_list.insert(END, *sql.get_users_list(db))
-# user_list.bind("<<ListboxSelect>>", lambda x: click_button())
 
 # Elément Content : photo & user
 content = Frame(central_widget)
 canvas = Canvas(content, width=350, height=350, bg="#FAEDF0")
 photo = PhotoImage(file="avatar_h.png")
-canvas.create_image(0, 0, anchor=NW, image=photo)
+image_canvas = canvas.create_image(50, 0, anchor=NW, image=photo)
 name_label = Label(
     content,
-    text="Nom Prénom",
+    text="Prénom Nom \n Statut Genre",
     fg="#161853",
     font="Noto 12",
     padx=10,
