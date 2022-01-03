@@ -35,9 +35,11 @@ def click_button():
 
 def find_person():
     indice = user_list.curselection()  # retourne un indice
+    print(indice)
     full_name = user_list.get(
         indice
     )  # retourne un string avec le prenom, nom de l'indice
+    print(full_name)
     full_name = full_name.split(" ")
     prenom, nom = full_name
     return (prenom, nom)
